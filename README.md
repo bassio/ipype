@@ -86,6 +86,8 @@ For example:
 
         ipype --github https://github.com/user/repository/folder_with_notebooks --output ./output_dir
 
+    Reminder to self: How to run only trusted notebooks (Security).
+
 - Notification (think email etc) when the processing of a long-running pipeline finishes.
 
 - Closer integration with the rest of the Jupyter ecosystem.
