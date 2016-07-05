@@ -19,6 +19,10 @@ The package does not aim to replace complex workflow/pipeline/build software, bu
     #OR (shorter version)
     python ipype -p notebook.ipynb -o ./output_dir
     
+    #notebooks inside an input dir can be run
+    python ipype -p ./pipeline_notebooks -o ./output_dir
+    #currently globbed as /dir/*.ipynb
+    
     #Zip files containing multiple notebook files are supported!
     python ipype -p pipeline_notebooks.zip -o ./output_dir
     

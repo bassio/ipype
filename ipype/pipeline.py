@@ -10,7 +10,9 @@ from traitlets.config import Configurable, Application
 import nbformat
 from nbconvert.exporters import Exporter
 
-from ipype.notebook import export_notebook, execute_notebook, notebook_to_html, get_notebooks_in_zip, extract_notebook_from_zip, ZipFileTuple
+from ipype.notebook import export_notebook, execute_notebook, notebook_to_html, \
+get_notebooks_in_zip, extract_notebook_from_zip, ZipFileTuple, is_valid_notebook
+
 from ipype.preprocessors import IPypeExecutePreprocessor
 
 #class Pipeline(Configurable):
@@ -32,7 +34,12 @@ class Pipeline(Exporter):
             self._notebooks = self._path.glob(self.notebook_pattern)
         elif is_zipfile(str(self._path)):
             self._notebooks = get_notebooks_in_zip(str(self._path))
-        
+        elif self._path.is_file():
+            if is_valid_notebook(str(self._path)):
+                self._notebooks = [self._path] # list with one notebook
+            else:
+                raise Exception("Could not validate notebook")
+
         self.init_preprocessor()
         
         

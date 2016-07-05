@@ -2,6 +2,8 @@ from pathlib import Path
 import zipfile
 from collections import namedtuple
 import nbformat
+from nbformat.reader import reads as reader_reads
+from nbformat.validator import validate
 from nbconvert.exporters import HTMLExporter
 from nbconvert.preprocessors import ExecutePreprocessor
 
@@ -86,3 +88,15 @@ def extract_notebook_from_zip(zip_file, notebook_filename, output_dir):
     with zipfile.ZipFile(zip_file, 'r') as zipped:
         zipped.extract(notebook_filename, str(output_path))
          
+def is_valid_notebook(notebook_file):
+    with open(notebook_file) as myfile:
+        data = "".join(line for line in myfile)
+    
+    nb = reader_reads(data)
+    
+    try:
+        validate(nb)
+        return True
+    except ValidationError as e:
+        return False
+        
