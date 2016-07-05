@@ -90,6 +90,7 @@ For example:
 
 - Closer integration with the rest of the Jupyter ecosystem.
 
+- Reach a convention on how to set up initial pipeline configuration and how the pipeline signals its required inputs. Investigate how to reuse the traitlets system as much as possible for that.
 
 ## Acknowledgements
 
