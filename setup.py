@@ -36,7 +36,7 @@ setup_requires = [
 
 
 install_requires = []
-with open(os.path.join(here, 'requirements.txt') as req:
+with open(os.path.join(here, 'requirements.txt')) as req:
     for line in req:
 	install_requires.append(line)
 
