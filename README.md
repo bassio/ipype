@@ -73,7 +73,7 @@ To be available soon.
 
 ## Roadmap
 
-Some interesting functionality to aim for:
+Some things to aim for:
 
 - Allowing a series of files as input on the commandline to allow the pipelining of multiple pipelines *in sequence*.
 For example:
@@ -91,6 +91,9 @@ For example:
 - Closer integration with the rest of the Jupyter ecosystem.
 
 - Reach a convention on how to set up initial pipeline configuration and how the pipeline signals its required inputs. Investigate how to reuse the traitlets system as much as possible for that.
+
+- Provide documentation and testing.
+
 
 ## Acknowledgements
 
