@@ -14,16 +14,20 @@ The package does not aim to replace complex workflow/pipeline/build software, bu
 
 ## Example: Command-line interface
 
-    ipype --pipeline notebook.ipynb --output ./output_dir
+    python ipype --pipeline notebook.ipynb --output ./output_dir
     
     #OR (shorter version)
-    ipype -p notebook.ipynb -o ./output_dir
+    python ipype -p notebook.ipynb -o ./output_dir
     
     #Zip files containing multiple notebook files are supported!
-    ipype -p pipeline_notebooks.zip -o ./output_dir
+    python ipype -p pipeline_notebooks.zip -o ./output_dir
     
     #Note: R Kernel notebooks work, Jupyter is awesome!
-    ipype -p R_kernel_nb_test.ipynb -o ./output_dir
+    python ipype -p R_kernel_nb_test.ipynb -o ./output_dir
+    #make sure you have installed IRKernel
+    
+    #through the console script entrypoint - command ipype (not tested)
+    ipype -p notebook.ipynb -o ./output_dir
     
 
 ## Example: Python API interface

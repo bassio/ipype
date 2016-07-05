@@ -66,6 +66,8 @@ setup(name=package_name,
       test_suite='ipype.tests',
       install_requires=install_requires,
       setup_requires=setup_requires,
-      entry_points="""\
-      """,
+      entry_points={
+          'console_scripts': [
+	      'ipype = ipype.__main__:main'
+           ]},
       )
