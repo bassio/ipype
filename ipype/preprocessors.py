@@ -1,5 +1,15 @@
 import os
-from nbconvert.preprocessors import ExecutePreprocessor
+from nbconvert.preprocessors.execute import ExecutePreprocessor, CellExecutionError
+
+
+cell_exec_err_msg = \
+"""
+An error occurred while executing the following cell:
+------------------
+{cell.source}
+------------------
+{out.ename}: {out.evalue}
+"""
 
 
 class IPypeExecutePreprocessor(ExecutePreprocessor):
@@ -43,14 +53,7 @@ class IPypeExecutePreprocessor(ExecutePreprocessor):
         if not self.allow_errors:
             for out in outputs:
                 if out.output_type == 'error':
-                    pattern = u"""\
-                        An error occurred while executing the following cell:
-                        ------------------
-                        {cell.source}
-                        ------------------
-                        {out.ename}: {out.evalue}
-                        """
-                    msg = dedent(pattern).format(out=out, cell=cell)
+                    msg = cell_exec_err_msg.format(out=out, cell=cell)
                     raise CellExecutionError(msg)
         return cell, resources
     
