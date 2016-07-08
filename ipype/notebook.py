@@ -2,8 +2,8 @@ from pathlib import Path
 import zipfile
 from collections import namedtuple
 import nbformat
-from nbformat.reader import reads as reader_reads
-from nbformat.validator import validate
+from nbformat.reader import reads as reader_reads, NotJSONError
+from nbformat.validator import validate, ValidationError
 from nbconvert.exporters import HTMLExporter
 from nbconvert.preprocessors import ExecutePreprocessor
 
@@ -92,11 +92,12 @@ def is_valid_notebook(notebook_file):
     with open(notebook_file) as myfile:
         data = "".join(line for line in myfile)
     
-    nb = reader_reads(data)
-    
     try:
+        nb = reader_reads(data)
         validate(nb)
         return True
     except ValidationError as e:
+        return False
+    except NotJSONError as e:
         return False
         

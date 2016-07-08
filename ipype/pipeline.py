@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import zipfile
 from zipfile import is_zipfile
 import shutil
 import io
@@ -7,6 +8,7 @@ import copy
 
 import traitlets
 from traitlets.config import Configurable, Application
+from traitlets.config.loader import PyFileConfigLoader, JSONFileConfigLoader, KeyValueConfigLoader, KVArgParseConfigLoader
 import nbformat
 from nbconvert.exporters import Exporter
 
@@ -15,11 +17,59 @@ get_notebooks_in_zip, extract_notebook_from_zip, ZipFileTuple, is_valid_notebook
 
 from ipype.preprocessors import IPypeExecutePreprocessor
 
+
+class ZippedPipelineConfigLoader(PyFileConfigLoader):
+    def _read_file_as_dict(self):
+        
+        def get_config():
+            return self.config
+        
+        zip_file = self.full_filename
+        zip_file_pth = Path(zip_file)
+        
+        with zipfile.ZipFile(zip_file, 'r') as zipped:
+            #try python config first
+            try:
+                zipinfo = zipped.getinfo("config.py")
+                config_type = 'python'
+            except KeyError:
+                try:
+                    zipinfo = zipped.getinfo("config.json")
+                    config_type = 'json'
+                except KeyError:
+                    return #return silently
+                        
+            if config_type == 'python':
+                with zipped.open(zipinfo, 'r') as f:
+                    namespace = dict(
+                    c=self.config,
+                    load_subconfig=self.load_subconfig,
+                    get_config=get_config,
+                    __file__=self.full_filename,
+                    )
+                    exec(compile(f.read(), zip_file_pth.name, 'exec'), namespace)
+            else:
+                with zipped.open(zipinfo, 'r') as f:
+                    return json.load(f)
+
+class DirPipelineConfigLoader(PyFileConfigLoader):
+    def __new__(self, dir_name_pth):
+        dir_name_pth = Path(dir_name_pth)
+        
+        if (dir_name_pth / 'config.py').exists():
+            return PyFileConfigLoader(str(dir_name_pth / 'config.py'))
+        elif (dir_name_pth / 'config.json').exists():
+            return JSONFileConfigLoader(str(dir_name_pth / 'config.json'))
+        else:
+            return PyFileConfigLoader(str(dir_name_pth / 'config.py'))
+            
+
 #class Pipeline(Configurable):
 class Pipeline(Exporter):
     requires = traitlets.List()
     path = traitlets.Unicode().tag(config=True)
     output_dir = traitlets.Unicode().tag(config=True)
+    extra_args = traitlets.Tuple().tag(config=True)
     notebook_pattern = traitlets.Unicode("*.ipynb")
     
     output_subdirs = traitlets.List(['data','exec_notebooks','html','logs','pipeline', 'results','tmp'])
@@ -42,13 +92,33 @@ class Pipeline(Exporter):
 
         self.init_preprocessor()
         
+        self.init_configloader()
+        
+        print(self.config)
+        
+        x
         
     def init_preprocessor(self):
         preprocessor = IPypeExecutePreprocessor(timeout=-1)
         preprocessor.log = self.parent.log
         self.preprocessor = preprocessor
     
-            
+    def init_configloader(self):
+        if self._path.is_dir():
+            self.configloader = DirPipelineConfigLoader(str(self._path))
+            self.config.merge(self.configloader.load_config())
+        elif is_zipfile(str(self._path)):
+            self.configloader = ZippedPipelineConfigLoader(str(self._path))
+            self.config.merge(self.configloader.load_config())
+        else:
+            pass
+        
+        print(self.extra_args)
+        cmdline_args_config = KVArgParseConfigLoader(self.extra_args).load_config()
+        print(cmdline_args_config)
+        self.config.merge(cmdline_args_config)
+        
+        
     def _output_subdir(self, subdir):
         return (self._output / subdir)
     
@@ -189,4 +259,4 @@ class IPypeApp(Application):
         #if self.config_file: self.load_config_file(self.config_file)
         self.init_pipeline()
         
-            
+             
