@@ -93,9 +93,7 @@ class Pipeline(Exporter):
         self.init_preprocessor()
         
         self.init_configloader()
-        
-        print(self.config)
-        
+                
         x
         
     def init_preprocessor(self):
@@ -106,18 +104,25 @@ class Pipeline(Exporter):
     def init_configloader(self):
         if self._path.is_dir():
             self.configloader = DirPipelineConfigLoader(str(self._path))
-            self.config.merge(self.configloader.load_config())
+            pipeline_config = self.configloader.load_config()
         elif is_zipfile(str(self._path)):
             self.configloader = ZippedPipelineConfigLoader(str(self._path))
-            self.config.merge(self.configloader.load_config())
+            pipeline_config = self.configloader.load_config()
         else:
             pass
         
-        print(self.extra_args)
-        cmdline_args_config = KVArgParseConfigLoader(self.extra_args).load_config()
-        print(cmdline_args_config)
-        self.config.merge(cmdline_args_config)
+        #print(pipeline_config)
+        cmdline_args_config = KeyValueConfigLoader(self.extra_args).load_config()
+        print(pipeline_config)
         
+        pipeline_config['Pipeline'].merge(cmdline_args_config)
+        
+        print(pipeline_config)
+        
+        import pdb
+        self.config.merge(pipeline_config)
+        
+        pdb.set_trace()
         
     def _output_subdir(self, subdir):
         return (self._output / subdir)
