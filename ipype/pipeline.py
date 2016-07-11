@@ -93,8 +93,7 @@ class Pipeline(Exporter):
         self.init_preprocessor()
         
         self.init_configloader()
-                
-        x
+        
         
     def init_preprocessor(self):
         preprocessor = IPypeExecutePreprocessor(timeout=-1)
@@ -113,16 +112,11 @@ class Pipeline(Exporter):
         
         #print(pipeline_config)
         cmdline_args_config = KeyValueConfigLoader(self.extra_args).load_config()
-        print(pipeline_config)
         
         pipeline_config['Pipeline'].merge(cmdline_args_config)
         
-        print(pipeline_config)
-        
-        import pdb
         self.config.merge(pipeline_config)
         
-        pdb.set_trace()
         
     def _output_subdir(self, subdir):
         return (self._output / subdir)
