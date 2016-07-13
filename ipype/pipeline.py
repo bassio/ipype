@@ -81,7 +81,7 @@ class Pipeline(Exporter):
         self._output = Path(self.output_dir).absolute()
 
         if self._path.is_dir():
-            self._notebooks = self._path.glob(self.notebook_pattern)
+            self._notebooks = sorted(self._path.glob(self.notebook_pattern))
         elif is_zipfile(str(self._path)):
             self._notebooks = get_notebooks_in_zip(str(self._path))
         elif self._path.is_file():
@@ -90,16 +90,11 @@ class Pipeline(Exporter):
             else:
                 raise Exception("Could not validate notebook")
 
-        self.init_preprocessor()
-        
         self.init_configloader()
         
+        self.init_preprocessor()
         
-    def init_preprocessor(self):
-        preprocessor = IPypeExecutePreprocessor(timeout=-1)
-        preprocessor.log = self.parent.log
-        self.preprocessor = preprocessor
-    
+        
     def init_configloader(self):
         if self._path.is_dir():
             self.configloader = DirPipelineConfigLoader(str(self._path))
@@ -110,14 +105,18 @@ class Pipeline(Exporter):
         else:
             pass
         
-        #print(pipeline_config)
         cmdline_args_config = KeyValueConfigLoader(self.extra_args).load_config()
         
-        pipeline_config['Pipeline'].merge(cmdline_args_config)
+        pipeline_config['Args'].merge(cmdline_args_config)
         
-        self.config.merge(pipeline_config)
+        self.config['Pipeline'].merge(pipeline_config)
         
         
+    def init_preprocessor(self):
+        preprocessor = IPypeExecutePreprocessor(timeout=-1, pipeline_config=self.config)
+        preprocessor.log = self.parent.log
+        self.preprocessor = preprocessor
+    
     def _output_subdir(self, subdir):
         return (self._output / subdir)
     

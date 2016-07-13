@@ -1,4 +1,5 @@
 import os
+from traitlets.config import Config
 from nbconvert.preprocessors.execute import ExecutePreprocessor, CellExecutionError
 
 
@@ -14,6 +15,8 @@ An error occurred while executing the following cell:
 
 class IPypeExecutePreprocessor(ExecutePreprocessor):
     timeout = -1
+    pipeline_config = Config()
+    expose_env_variables = False
     
     def preprocess(self, nb, resources):
         path = resources.get('metadata', {}).get('path', '')
@@ -25,13 +28,27 @@ class IPypeExecutePreprocessor(ExecutePreprocessor):
         if self.kernel_name:
             kernel_name = self.kernel_name
         self.log.debug("Executing notebook with kernel: %s" % kernel_name)
+        
         self.km, self.kc = start_new_kernel(
             kernel_name=kernel_name,
             extra_arguments=self.extra_arguments,
             stderr=open(os.devnull, 'w'),
             cwd=path)
+        
         self.kc.allow_stdin = False
-
+        
+        
+        env = {}
+        
+        if self.expose_env_variables:
+            env = os.environ.copy()
+            
+        env.update(self.pipeline_config)
+        env_code_str = 'env={}'.format(repr(env))
+        env_pipeline_code_str = 'pipeline = env["Pipeline"]'
+        self.kc.execute(env_code_str, silent=True)
+        self.kc.execute(env_pipeline_code_str, silent=True)
+        
         try:
             nb, resources = super(ExecutePreprocessor, self).preprocess(nb, resources)
         finally:
