@@ -105,7 +105,9 @@ class Pipeline(Exporter):
         else:
             pass
         
-        cmdline_args_config = KeyValueConfigLoader(self.extra_args).load_config()
+        kv_config_loader = KeyValueConfigLoader(self.extra_args)
+        kv_config_loader.log.setLevel(logging.ERROR) #shut up the useless warnings
+        cmdline_args_config = kv_config_loader.load_config()
         
         pipeline_config['Args'].merge(cmdline_args_config)
         
