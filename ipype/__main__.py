@@ -11,7 +11,7 @@ def main(pipeline, output_dir, **extra_args):
     c = Config()
     c.Pipeline.path = pipeline
     c.Pipeline.output_dir = output_dir
-    c.Pipeline.extra_args = extra_args['extra_args']
+    c.Pipeline.cmdline_args = extra_args['extra_args']
     app = IPypeApp(config=c)
     app.initialize()
     app.pipeline.start()

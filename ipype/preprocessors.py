@@ -1,6 +1,9 @@
 import os
+import pprint
+import json
 from traitlets.config import Config
 from nbconvert.preprocessors.execute import ExecutePreprocessor, CellExecutionError
+from nbformat.notebooknode import NotebookNode
 
 
 cell_exec_err_msg = \
@@ -13,12 +16,23 @@ An error occurred while executing the following cell:
 """
 
 
+cell_pipeline = \
+"""
+from traitlets.config import Config
+
+pipeline_info = Config(\
+{}
+)
+"""
+
+
 class IPypeExecutePreprocessor(ExecutePreprocessor):
     timeout = -1
     pipeline_config = Config()
     expose_env_variables = False
     
     def preprocess(self, nb, resources):
+        
         path = resources.get('metadata', {}).get('path', '')
         if path == '':
             path = None
@@ -37,15 +51,23 @@ class IPypeExecutePreprocessor(ExecutePreprocessor):
         
         self.kc.allow_stdin = False
         
-        
         env = {}
         
         if self.expose_env_variables:
             env = os.environ.copy()
             
         env.update(self.pipeline_config)
+        
+        pipeline_info_repr = pprint.pformat(dict(nb['metadata']['pipeline_info']), width=1, compact=True)
+        
+        
+        nb.cells.insert(0, NotebookNode({'cell_type': 'code',
+                            'source': cell_pipeline.format(pipeline_info_repr),
+                            'metadata': {'collapsed':False},
+                            }))
+        
         env_code_str = 'env={}'.format(repr(env))
-        env_pipeline_code_str = 'pipeline = env["Pipeline"]'
+        env_pipeline_code_str = 'pipeline = {}'.format(repr(env["Pipeline"]))
         self.kc.execute(env_code_str, silent=True)
         self.kc.execute(env_pipeline_code_str, silent=True)
         

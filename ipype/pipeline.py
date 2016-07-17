@@ -1,10 +1,11 @@
 import logging
-from pathlib import Path
 import zipfile
-from zipfile import is_zipfile
 import shutil
 import io
 import copy
+from zipfile import is_zipfile
+from datetime import datetime
+from pathlib import Path
 
 import traitlets
 from traitlets.config import Configurable, Application
@@ -69,7 +70,7 @@ class Pipeline(Exporter):
     requires = traitlets.List()
     path = traitlets.Unicode().tag(config=True)
     output_dir = traitlets.Unicode().tag(config=True)
-    extra_args = traitlets.Tuple().tag(config=True)
+    cmdline_args = traitlets.Tuple().tag(config=True)
     notebook_pattern = traitlets.Unicode("*.ipynb")
     
     output_subdirs = traitlets.List(['data','exec_notebooks','html','logs','pipeline', 'results','tmp'])
@@ -105,7 +106,7 @@ class Pipeline(Exporter):
         else:
             pass
         
-        kv_config_loader = KeyValueConfigLoader(self.extra_args)
+        kv_config_loader = KeyValueConfigLoader(self.cmdline_args)
         kv_config_loader.log.setLevel(logging.ERROR) #shut up the useless warnings
         cmdline_args_config = kv_config_loader.load_config()
         
@@ -170,18 +171,57 @@ class Pipeline(Exporter):
 
         #list and set the notebooks (all extracted notebooks)
         #############
-        #self.notebooks = self._output_subdir('pipeline').glob(self.notebook_pattern)
         self.notebooks = self.extracted_notebooks
-        #TODO:decide which is the better line to set the notebooks
+        #add it into the Pipeline metadata
+        self.config['Pipeline']['pipeline_notebooks'] = [str(nb) for nb in self.notebooks]
         
-
-    
+        #copy config file
+        
+        
     def export_single_notebook(self, notebook_filename, resources=None, input_buffer=None):
-        notebook_filename = Path(notebook_filename)
-        notebook_exec_name = notebook_filename.with_suffix('.exec.ipynb').name
+        
+        notebook_filename_pth = Path(notebook_filename)
+        notebook_exec_name = notebook_filename_pth.with_suffix('.exec.ipynb').name
         notebook_exec_pth = self._output_subdir('exec_notebooks') / notebook_exec_name
-        nb, resources = export_notebook(notebook_filename, self.preprocessor, metadata_path_str=str(self._output))
+        
+        nb = None
+    
+        with open(str(notebook_filename_pth)) as f:
+            nb = nbformat.read(f, as_version=nbformat.current_nbformat)
+
+        resources = {'metadata': {'path': str(self._output)}}
+        
+        pipeline_info_dict = dict(self.config)['Pipeline']
+        
+        if 'pipeline_info' not in nb['metadata']:
+            nb['metadata']['pipeline_info'] = pipeline_info_dict
+        else: #assume it is a dict / dict-like
+            nb['metadata']['pipeline_info'].update(pipeline_info_dict)
+            
+        nb['metadata']['pipeline_info']['notebook_filename'] = notebook_exec_name
+        nb['metadata']['pipeline_info']['notebook_name'] = notebook_exec_name.split(".exec.ipynb")[0]
+        nb['metadata']['pipeline_info']['notebook_path'] = str(notebook_exec_pth)
+        nb['metadata']['pipeline_info']['notebook_index'] = notebook_index = self.notebooks.index(notebook_filename_pth)
+        if notebook_index == 0:
+            nb['metadata']['pipeline_info']['previous_notebook'] = None 
+        else:
+            nb['metadata']['pipeline_info']['previous_notebook'] = str(self.notebooks[notebook_index - 1])
+        
+        
+        notebook_started = datetime.now().isoformat()
+        nb['metadata']['pipeline_info']['notebook_started'] = notebook_started
+        self.logger.info("Starting to execute {}".format(str(notebook_filename_pth)))
+        
+        
+        self.preprocessor.preprocess(nb, resources)
+        
+        notebook_finished = datetime.now().isoformat()
+        nb['metadata']['pipeline_info']['notebook_finished'] = notebook_finished
+        self.logger.info("Finished executing {} at {}".format(str(notebook_filename_pth), notebook_finished))
+        
+        
         return nb, resources
+        
         
     def convert_single_notebook(self, notebook_filename, input_buffer=None):
         
@@ -189,9 +229,9 @@ class Pipeline(Exporter):
         notebook_exec_name = notebook_filename.with_suffix('.exec.ipynb').name
         notebook_exec_pth = self._output_subdir('exec_notebooks') / notebook_exec_name
         
-        self.logger.info("Starting to execute {}".format(str(notebook_filename)))
+        
         nb, resources = self.export_single_notebook(notebook_filename)
-        self.logger.info("Finished executing {}".format(str(notebook_filename)))
+        
     
 
         with io.open(str(notebook_exec_pth), 'wt', encoding='utf-8') as f:
