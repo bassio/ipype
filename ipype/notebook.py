@@ -4,7 +4,7 @@ from collections import namedtuple
 import nbformat
 from nbformat.reader import reads as reader_reads, NotJSONError
 from nbformat.validator import validate, ValidationError
-from nbconvert.exporters import HTMLExporter
+from ipype.exporters import HTMLExporter
 from nbconvert.preprocessors import ExecutePreprocessor
 
 ZipFileTuple = namedtuple('ZipFileTuple', ['zipfile_path','member_info'])

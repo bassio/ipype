@@ -20,9 +20,16 @@ cell_pipeline = \
 """
 from traitlets.config import Config
 
-pipeline_info = Config(\
+pipeline_info = Config(
 {}
 )
+
+pipeline_info['outputs'] = pipeline_info['inputs']
+"""
+
+cell_pipeline_info_output = \
+"""
+print(repr(dict(pipeline_info)))
 """
 
 
@@ -74,12 +81,42 @@ class IPypeExecutePreprocessor(ExecutePreprocessor):
         try:
             nb, resources = super(ExecutePreprocessor, self).preprocess(nb, resources)
         finally:
-            pass
+            self.preprocess_pipeline_outputs(nb, resources)
+        
             self.kc.stop_channels()
             self.km.shutdown_kernel(now=True)
-
+        
+        
         return nb, resources
     
+    def preprocess_pipeline_outputs(self, nb, resources):
+        
+        self.kc.execute(cell_pipeline_info_output)
+        
+        msg_dict = {}
+        
+        while True:
+            try:
+                reply = self.kc.get_iopub_msg(timeout=1)
+                if reply['msg_type'] == 'stream':
+                    msg_dict = reply
+                    break
+                
+            except Empty:
+                break
+
+        try:
+            pipeline_info = eval(msg_dict['content']['text'])
+        except:
+            pipeline_info = msg_dict
+            
+        
+        outputs = pipeline_info.get('outputs', {})
+        
+        nb['metadata']['pipeline_info']['outputs'] = outputs
+        #TODO
+        #shouldn't it be nb['pipeline_info'] = pipeline_info
+        
 
     def preprocess_cell(self, cell, resources, cell_index):
         self.log.debug("Executing cell with index number {}".format(str(cell_index)))
@@ -100,4 +137,4 @@ class IPypeExecutePreprocessor(ExecutePreprocessor):
         self.kc.stop_channels()
         self.km.shutdown_kernel(now=True)
         
- 
+
