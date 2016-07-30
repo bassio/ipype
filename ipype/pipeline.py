@@ -9,61 +9,19 @@ from pathlib import Path
 
 import traitlets
 from traitlets.config import Configurable, Application
-from traitlets.config.loader import PyFileConfigLoader, JSONFileConfigLoader, KeyValueConfigLoader, KVArgParseConfigLoader
+from traitlets.config.loader import KeyValueConfigLoader
+from traitlets.config.manager import BaseJSONConfigManager
+
 import nbformat
 from nbconvert.exporters import Exporter
 
+
+from ipype.preprocessors import IPypeExecutePreprocessor
+from ipype.config import ZippedPipelineConfigLoader, DirPipelineConfigLoader
 from ipype.notebook import export_notebook, execute_notebook, notebook_to_html, \
 get_notebooks_in_zip, extract_notebook_from_zip, ZipFileTuple, is_valid_notebook
 
-from ipype.preprocessors import IPypeExecutePreprocessor
 
-
-class ZippedPipelineConfigLoader(PyFileConfigLoader):
-    def _read_file_as_dict(self):
-        
-        def get_config():
-            return self.config
-        
-        zip_file = self.full_filename
-        zip_file_pth = Path(zip_file)
-        
-        with zipfile.ZipFile(zip_file, 'r') as zipped:
-            #try python config first
-            try:
-                zipinfo = zipped.getinfo("config.py")
-                config_type = 'python'
-            except KeyError:
-                try:
-                    zipinfo = zipped.getinfo("config.json")
-                    config_type = 'json'
-                except KeyError:
-                    return #return silently
-                        
-            if config_type == 'python':
-                with zipped.open(zipinfo, 'r') as f:
-                    namespace = dict(
-                    c=self.config,
-                    load_subconfig=self.load_subconfig,
-                    get_config=get_config,
-                    __file__=self.full_filename,
-                    )
-                    exec(compile(f.read(), zip_file_pth.name, 'exec'), namespace)
-            else:
-                with zipped.open(zipinfo, 'r') as f:
-                    return json.load(f)
-
-class DirPipelineConfigLoader(PyFileConfigLoader):
-    def __new__(self, dir_name_pth):
-        dir_name_pth = Path(dir_name_pth)
-        
-        if (dir_name_pth / 'config.py').exists():
-            return PyFileConfigLoader(str(dir_name_pth / 'config.py'))
-        elif (dir_name_pth / 'config.json').exists():
-            return JSONFileConfigLoader(str(dir_name_pth / 'config.json'))
-        else:
-            return PyFileConfigLoader(str(dir_name_pth / 'config.py'))
-            
 
 #class Pipeline(Configurable):
 class Pipeline(Exporter):
@@ -114,6 +72,9 @@ class Pipeline(Exporter):
         
         self.config['Pipeline'].merge(pipeline_config)
         
+        #set pipeline_dir
+        self.config['Pipeline']['pipeline_dir'] = str(self._output_subdir('pipeline'))
+        
         
     def init_preprocessor(self):
         preprocessor = IPypeExecutePreprocessor(timeout=-1, pipeline_config=self.config)
@@ -124,13 +85,12 @@ class Pipeline(Exporter):
         return (self._output / subdir)
     
     def _make_output_dir(self):
-        if not self._output.exists():
-            self._output.mkdir()
+        self._output.mkdir(exist_ok=True)
 
     def _make_output_subdirs(self):
         for subdir in self.output_subdirs:
             subdir_pth = self._output / subdir
-            subdir_pth.mkdir()
+            subdir_pth.mkdir(exist_ok=True)
     
     def _setup_logging(self):
         try:
@@ -165,7 +125,11 @@ class Pipeline(Exporter):
 
             elif isinstance(notebook_file, Path):
                 dst_notebook_pth = self._output_subdir('pipeline') / notebook_file.name
-                shutil.copy(str(notebook_file), str(dst_notebook_pth))
+                try:
+                    shutil.copy(str(notebook_file), str(dst_notebook_pth))
+                except shutil.SameFileError: #when the input pipeline_dir = output_dir
+                    pass #happy: do nothing
+                
                 self.extracted_notebooks.append(dst_notebook_pth)
                 
 
@@ -175,16 +139,24 @@ class Pipeline(Exporter):
         #add it into the Pipeline metadata
         self.config['Pipeline']['pipeline_notebooks'] = [str(nb) for nb in self.notebooks]
         
-        #copy config file
         
         #copy custom files
         module_path = Path(__loader__.path).absolute().parent
         custom_js = module_path / 'custom' / 'custom.js'
         custom_css = module_path / 'custom' / 'custom.css'
-        shutil.copy(str(custom_js), str(self._output_subdir('pipeline')))
         shutil.copy(str(custom_js), str(self._output_subdir('html')))
         
         
+    
+    def init_config_json(self):
+        #save a config.json into the output dir
+        configmanager = BaseJSONConfigManager(config_dir=str(self._output))
+        configmanager.set('config', self.config['Pipeline'])
+        #save a config.json into the "pipeline subdir"
+        configmanager = BaseJSONConfigManager(config_dir=str(self._output_subdir('pipeline')))
+        configmanager.set('config', self.config['Pipeline'])
+    
+    
     def export_single_notebook(self, notebook_filename, resources=None, input_buffer=None):
         
         notebook_filename_pth = Path(notebook_filename)
@@ -327,6 +299,10 @@ class Pipeline(Exporter):
         
         #copy "unexecuted" notebooks (to pipeline subdir)
         self.init_notebooks()
+        
+        #save a config.json of current configuration into
+        #the output dir
+        self.init_config_json()
         
         #execute notebooks
         self.convert_notebooks()
