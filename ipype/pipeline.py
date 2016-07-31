@@ -200,8 +200,9 @@ class Pipeline(Exporter):
         
         self.preprocessor.preprocess(nb, resources)
         
-        notebook_finished = datetime.now().isoformat()
-        nb['metadata']['pipeline_info']['notebook_finished'] = notebook_finished
+        notebook_finished = datetime.now()
+        nb['metadata']['pipeline_info']['notebook_finished'] = notebook_finished.isoformat()
+        nb['metadata']['pipeline_info']['notebook_finished_timestamp'] = notebook_finished.timestamp()
         self.logger.info("Finished executing {} at {}".format(str(notebook_filename_pth), notebook_finished))
         
         return nb, resources
