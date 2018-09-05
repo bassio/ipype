@@ -6,7 +6,6 @@ from collections import namedtuple
 import nbformat
 from nbformat.reader import reads as reader_reads, NotJSONError
 from nbformat.validator import validate, ValidationError
-from ipype.exporters import HTMLExporter
 from nbconvert.preprocessors import ExecutePreprocessor
 
 ZipFileTuple = namedtuple('ZipFileTuple', ['zipfile_path','member_info'])
@@ -63,7 +62,9 @@ def notebook_to_html(notebook_pth, notebook_out_pth):
     notebook_out = str(notebook_out_pth)
     
     nb = None
-
+    
+    from ipype.exporters import HTMLExporter
+    
     html_exporter = HTMLExporter()
     #html_exporter.template_file = 'basic'
     
@@ -114,12 +115,15 @@ def is_valid_notebook(notebook_file):
         
 
 def get_notebook_pipeline_info(notebook_filename):
-    
     nb = open_notebook(notebook_filename)
-    
     return dict(nb.metadata.pipeline_info)
 
 
+def get_notebook_pipeline_outputs(notebook_filename):
+    pipeline_info= get_notebook_pipeline_info(notebook_filename)
+    return pipeline_info['outputs']
+
+    
 def md5sum(filename):
     
     md5hash = hashlib.md5()
@@ -217,14 +221,13 @@ def calculate_notebook_hash(notebook_filename):
 def is_notebook_modified_since_run(notebook_filename):
     nb = open_notebook(notebook_filename)
     
-    nb_mtime = float(nb.metadata.pipeline_info.notebook_finished_timestamp)
+    nb_started_time = float(nb.metadata.pipeline_info.notebook_started_timestamp)
+    nb_finished_time = float(nb.metadata.pipeline_info.notebook_finished_timestamp)
     inputs_mtimes = return_notebook_node_modified_times(nb.metadata.pipeline_info.inputs)
     outputs_mtimes = return_notebook_node_modified_times(nb.metadata.pipeline_info.outputs)
     
-    if max(inputs_mtimes + [nb_mtime]) > nb_mtime:
-        return True
-    
-    if max(outputs_mtimes + [nb_mtime]) > nb_mtime:
+    if max(inputs_mtimes) < nb_started_time \
+    and max(outputs_mtimes) > nb_finished_time:
         return True
     
     return False

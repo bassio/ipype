@@ -150,6 +150,7 @@ class Pipeline(Exporter):
     
     def init_config_json(self):
         #save a config.json into the output dir
+        print(print(self.config['Pipeline']))
         configmanager = BaseJSONConfigManager(config_dir=str(self._output))
         configmanager.set('config', self.config['Pipeline'])
         #save a config.json into the "pipeline subdir"
@@ -192,9 +193,10 @@ class Pipeline(Exporter):
             #set inputs from previous notebook outputs
             nb['metadata']['pipeline_info']['inputs'] = self.get_last_exec_notebook_outputs()        
         
-        notebook_started = datetime.now().isoformat()
-        nb['metadata']['pipeline_info']['notebook_started'] = notebook_started
-        
+        notebook_started = datetime.now()
+        nb['metadata']['pipeline_info']['notebook_started'] = notebook_started.isoformat()
+        nb['metadata']['pipeline_info']['notebook_started_timestamp'] = notebook_started.timestamp()
+
 
         self.logger.info("Starting to execute {}".format(str(notebook_filename_pth)))
         
@@ -281,6 +283,7 @@ class Pipeline(Exporter):
         self.exec_notebooks = []
         
         for notebook_filename in self.notebooks:
+            nb, resources = self.calibrate_single_notebook(notebook_filename)
             nb, resources = self.convert_single_notebook(notebook_filename)
         
         #export notebooks (to html)
